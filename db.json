@@ -1,0 +1,19 @@
+{
+  "offers": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-123456789abc",
+      "brand": "Mercedes",
+      "offer": "10% off on lease"
+    },
+    {
+      "id": "b2c3d4e5-f6g7-8901-bcde-234567890bcd",
+      "brand": "BMW",
+      "offer": "0% APR for 36 months"
+    },
+    {
+      "id": "c38a79e6-becf-4844-b1a2-21a50620dd9e",
+      "brand": "Tesla",
+      "offer": "%10 off for preapproved buyers"
+    }
+  ]
+}
