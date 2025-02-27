@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const { v4: uuidv4 } = require("uuid");
+const { Pool } = require("pg"); // Import pg package
+const { v4: uuidv4 } = require('uuid');  // Import uuidv4
 
 const app = express();
 const PORT = 3000;
@@ -9,81 +9,81 @@ const PORT = 3000;
 app.use(express.json());
 app.use(cors());
 
-// ✅ Function to Read Offers
-const getOffers = () => {
-   try {
-      const data = fs.readFileSync("db.json", "utf8");
-      return JSON.parse(data).offers || [];
-   } catch (error) {
-      console.error("Error reading db.json:", error);
-      return [];
+// ✅ Set up PostgreSQL Connection Pool
+const pool = new Pool({
+   connectionString: "postgresql://admin:uYOQ7Ts10ECAR6SP7ouAY5yX0y0lfTN7@dpg-cv0a8d0gph6c73c9en50-a.oregon-postgres.render.com/mini_offer_db", // Replace with your actual database URL
+   ssl: {
+      rejectUnauthorized: false
    }
-};
-
-// ✅ Ensure db.json exists
-if (!fs.existsSync("db.json")) {
-   fs.writeFileSync("db.json", JSON.stringify({ offers: [] }, null, 2));
-}
+});
 
 // ✅ Home Route
 app.get("/", (req, res) => {
    res.send("Mini Offer API is running!");
 });
 
-// ✅ GET /offers - Fetch all offers
-app.get("/offers", (req, res) => {
-   res.json(getOffers());
+// ✅ GET /offers - Fetch all offers from PostgreSQL
+app.get("/offers", async (req, res) => {
+   try {
+      const result = await pool.query("SELECT * FROM offers");
+      res.json(result.rows);
+   } catch (error) {
+      console.error("Error fetching offers:", error);
+      res.status(500).send("Error fetching offers");
+   }
 });
 
 // ✅ POST /offers - Add a new offer
-app.post("/offers", (req, res) => {
-   const offers = getOffers();
+app.post("/offers", async (req, res) => {
+   const { brand, offer } = req.body;
+   const id = uuidv4(); // Generate a unique ID for the offer
 
-   const newOffer = {
-      id: uuidv4(), // ✅ Generate a unique ID
-      brand: req.body.brand,
-      offer: req.body.offer
-   };
-
-   const updatedOffers = [...offers, newOffer];
-
-   // ✅ Save back to db.json
-   fs.writeFileSync("db.json", JSON.stringify({ offers: updatedOffers }, null, 2));
-
-   res.json({ message: "Offer added!", newOffer });
+   try {
+      const result = await pool.query(
+         "INSERT INTO offers (id, brand, offer) VALUES ($1, $2, $3) RETURNING *",
+         [id, brand, offer]
+      );
+      res.json({ message: "Offer added!", newOffer: result.rows[0] });
+   } catch (error) {
+      console.error("Error adding offer:", error);
+      res.status(500).send("Error adding offer");
+   }
 });
 
 // ✅ DELETE /offers/:id - Delete an offer
-app.delete("/offers/:id", (req, res) => {
-   const offers = getOffers();
-   const offerId = req.params.id;
+app.delete("/offers/:id", async (req, res) => {
+   const { id } = req.params;
 
-   const updatedOffers = offers.filter(offer => offer.id !== offerId);
-
-   if (offers.length === updatedOffers.length) {
-      return res.status(404).json({ error: "Offer not found" });
+   try {
+      const result = await pool.query("DELETE FROM offers WHERE id = $1 RETURNING *", [id]);
+      if (result.rowCount === 0) {
+         return res.status(404).json({ error: "Offer not found" });
+      }
+      res.json({ message: "Offer deleted!" });
+   } catch (error) {
+      console.error("Error deleting offer:", error);
+      res.status(500).send("Error deleting offer");
    }
-
-   fs.writeFileSync("db.json", JSON.stringify({ offers: updatedOffers }, null, 2));
-
-   res.json({ message: "Offer deleted!" });
 });
 
 // ✅ PATCH /offers/:id - Update an offer
-app.patch("/offers/:id", (req, res) => {
-   const offers = getOffers();
-   const offerId = req.params.id;
+app.patch("/offers/:id", async (req, res) => {
+   const { id } = req.params;
+   const { brand, offer } = req.body;
 
-   const offerIndex = offers.findIndex(offer => offer.id === offerId);
-   if (offerIndex === -1) {
-      return res.status(404).json({ error: "Offer not found" });
+   try {
+      const result = await pool.query(
+         "UPDATE offers SET brand = $1, offer = $2 WHERE id = $3 RETURNING *",
+         [brand, offer, id]
+      );
+      if (result.rowCount === 0) {
+         return res.status(404).json({ error: "Offer not found" });
+      }
+      res.json({ message: "Offer updated!", updatedOffer: result.rows[0] });
+   } catch (error) {
+      console.error("Error updating offer:", error);
+      res.status(500).send("Error updating offer");
    }
-
-   offers[offerIndex] = { ...offers[offerIndex], ...req.body };
-
-   fs.writeFileSync("db.json", JSON.stringify({ offers }, null, 2));
-
-   res.json({ message: "Offer updated!", updatedOffer: offers[offerIndex] });
 });
 
 // ✅ Start the Server
