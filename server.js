@@ -1,5 +1,5 @@
 const express = require("express");
-const cors = require("cors"); // ✅ Enable CORS
+const cors = require("cors");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 
@@ -7,32 +7,47 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(cors()); // ✅ Enable CORS
+app.use(cors());
 
 // ✅ Function to Read Offers
 const getOffers = () => {
-   const data = fs.readFileSync("db.json", "utf8");
-   return JSON.parse(data).offers;
+   try {
+      const data = fs.readFileSync("db.json", "utf8");
+      return JSON.parse(data).offers || [];
+   } catch (error) {
+      console.error("Error reading db.json:", error);
+      return [];
+   }
 };
+
+// ✅ Ensure db.json exists
+if (!fs.existsSync("db.json")) {
+   fs.writeFileSync("db.json", JSON.stringify({ offers: [] }, null, 2));
+}
+
+// ✅ Home Route
+app.get("/", (req, res) => {
+   res.send("Mini Offer API is running!");
+});
 
 // ✅ GET /offers - Fetch all offers
 app.get("/offers", (req, res) => {
    res.json(getOffers());
 });
 
-// ✅ POST /offers - Add a new offer with UUID
+// ✅ POST /offers - Add a new offer
 app.post("/offers", (req, res) => {
    const offers = getOffers();
 
    const newOffer = {
-      id: uuidv4(),  // ✅ Generate a unique ID using uuid
+      id: uuidv4(), // ✅ Generate a unique ID
       brand: req.body.brand,
       offer: req.body.offer
    };
 
    const updatedOffers = [...offers, newOffer];
 
-   // Save back to db.json
+   // ✅ Save back to db.json
    fs.writeFileSync("db.json", JSON.stringify({ offers: updatedOffers }, null, 2));
 
    res.json({ message: "Offer added!", newOffer });
@@ -43,11 +58,12 @@ app.delete("/offers/:id", (req, res) => {
    const offers = getOffers();
    const offerId = req.params.id;
 
-   console.log("Trying to delete ID:", offerId);
-
    const updatedOffers = offers.filter(offer => offer.id !== offerId);
 
-   // Save back to db.json
+   if (offers.length === updatedOffers.length) {
+      return res.status(404).json({ error: "Offer not found" });
+   }
+
    fs.writeFileSync("db.json", JSON.stringify({ offers: updatedOffers }, null, 2));
 
    res.json({ message: "Offer deleted!" });
@@ -58,17 +74,13 @@ app.patch("/offers/:id", (req, res) => {
    const offers = getOffers();
    const offerId = req.params.id;
 
-   console.log("Updating offer ID:", offerId);
-
    const offerIndex = offers.findIndex(offer => offer.id === offerId);
    if (offerIndex === -1) {
       return res.status(404).json({ error: "Offer not found" });
    }
 
-   // Update the offer
    offers[offerIndex] = { ...offers[offerIndex], ...req.body };
 
-   // Save back to db.json
    fs.writeFileSync("db.json", JSON.stringify({ offers }, null, 2));
 
    res.json({ message: "Offer updated!", updatedOffer: offers[offerIndex] });
@@ -76,5 +88,5 @@ app.patch("/offers/:id", (req, res) => {
 
 // ✅ Start the Server
 app.listen(PORT, () => {
-   console.log(`Server is running on http://localhost:${PORT}`);
+   console.log(`✅ Server is running on http://localhost:${PORT}`);
 });
