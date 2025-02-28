@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');  // Import uuidv4
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 app.use(express.json());
 app.use(cors({
    origin: "https://mini-offer-server-frontend.vercel.app", // Allow frontend domain
