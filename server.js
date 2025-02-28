@@ -4,10 +4,15 @@ const { Pool } = require("pg"); // Import pg package
 const { v4: uuidv4 } = require('uuid');  // Import uuidv4
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+   origin: "https://mini-offer-server-frontend.vercel.app", // Allow frontend domain
+   methods: "GET,POST,PATCH,DELETE",
+   allowedHeaders: "Content-Type,Authorization"
+}));
+
 
 // ✅ Set up PostgreSQL Connection Pool
 const pool = new Pool({
